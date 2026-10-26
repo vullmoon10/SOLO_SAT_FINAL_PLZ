@@ -4,7 +4,7 @@ from ui.hud import draw_hud
 
 
 class Renderer:  # 월드·플레이어·퀴즈 화면 렌더링을 담당한다.
-    def __init__(self, screen):
+    def __init__(self, screen):  # 렌더링할 게임 화면을 지정한다.
         self.screen = screen  # 렌더링 대상 화면
 
     def draw_text(self, text, x, y, color=DARK, font=FONT):  # 지정한 위치와 스타일로 텍스트를 그린다.
@@ -91,7 +91,7 @@ class Renderer:  # 월드·플레이어·퀴즈 화면 렌더링을 담당한다
             option = pygame.Rect(205,245+i*48,590,39)  # 선택지 버튼 영역
             selected = i == quiz.selected  # 현재 선택된 답인지 여부
             pygame.draw.rect(self.screen,(190,220,255) if selected else GRAY,option,border_radius=5)
-            if selected:
+            if selected:  # 현재 선택된 답에 강조 테두리를 그린다.
                 pygame.draw.rect(self.screen,(55,110,220),option,2,border_radius=5)
             self.draw_text(f"{i+1}. {choice}",220,option.y+8,DARK,SMALL)
         self.draw_text("↑/↓ 선택 · Enter 제출 · 마우스 클릭",210,450,DARK,SMALL)

@@ -17,7 +17,7 @@ class Player:  # 플레이어 위치와 이동 물리를 관리한다.
         self.rect.x += dx  # 입력 이동량을 가로 위치에 적용한다.
 
         # 사다리는 플레이어의 발 위치까지 포함해 판정하고, 사다리 밖으로 나가면 중력을 복구한다.
-        ladder = next((item for item in world.ladders
+        ladder = next((item for item in world.ladders  # 플레이어와 겹치는 사다리를 찾는다.
                        if self.rect.centerx >= item.left - 8
                        and self.rect.centerx <= item.right + 8
                        and self.rect.bottom >= item.top
@@ -41,8 +41,8 @@ class Player:  # 플레이어 위치와 이동 물리를 관리한다.
                 overlap = self.rect.right > surface.left and self.rect.left < surface.right  # 수평 충돌 범위 중첩 여부
                 crossed_top = previous.bottom <= surface.top and self.rect.bottom >= surface.top  # 위에서 표면을 통과했는지 여부
                 # 사다리에서 내려와 이미 발판 높이 안쪽에 있는 경우도 착지시킨다.
-                ladder_exit_landing = (previous.bottom <= surface.top + 3 and self.rect.bottom >= surface.top
-                                       and previous.top < surface.top and self.rect.bottom <= surface.top + 16)  # 사다리에서 내려와 발판 높이에 도달했는지 확인한다.
+                ladder_exit_landing = (previous.bottom <= surface.top + 3 and self.rect.bottom >= surface.top  # 사다리에서 내려와 발판 높이에 도달했는지 확인한다.
+                                       and previous.top < surface.top and self.rect.bottom <= surface.top + 16)
                 if overlap and (crossed_top or ladder_exit_landing):  # 착지 조건을 만족하면 발판 위에 정렬한다.
                     self.rect.bottom = surface.top  # 발판 상단에 플레이어를 맞춘다.
                     self.vy = 0  # 착지 시 낙하 속도를 제거한다.

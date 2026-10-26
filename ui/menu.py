@@ -51,9 +51,9 @@ class Menu:  # 메인·불러오기·크레딧 메뉴 화면을 관리한다.
         fill = (255, 220, 70) if active else (238, 242, 247)  # 선택 상태에 따른 버튼 배경색
         ink = (30, 43, 57) if active else (47, 62, 78)  # 선택 상태에 따른 글자색
         pygame.draw.rect(self.screen, fill, rect, border_radius=8)
-        if active:
+        if active:  # 선택된 버튼에 테두리를 표시한다.
             pygame.draw.rect(self.screen, WHITE, rect, 2, border_radius=8)
-        if subtitle:
+        if subtitle:  # 부제목이 있으면 두 줄로 표시한다.
             self._text(label, (rect.centerx, rect.y + 18), self.font, ink)
             self._text(subtitle, (rect.centerx, rect.y + 40), self.small, ink)
         else:
@@ -64,7 +64,7 @@ class Menu:  # 메인·불러오기·크레딧 메뉴 화면을 관리한다.
         self._text("나 혼자만 1등급", (500, 112), self.title_font, WHITE)
         self._text("SOLO SAT", (500, 163), self.subtitle_font, YELLOW)
         self._text("STUDY · SURVIVE · RANK UP", (500, 193), self.small, (204, 218, 232))
-        self.buttons = []
+        self.buttons = []  # 메인 페이지 버튼 목록을 새로 구성한다.
         self._button("새 게임", 235, 0, "새로운 도전을 시작한다")
         self._button("불러오기", 305, 1, "저장 슬롯 선택")
         self._button("크레딧", 375, 2)
@@ -74,7 +74,7 @@ class Menu:  # 메인·불러오기·크레딧 메뉴 화면을 관리한다.
     def _draw_load(self):  # 저장 슬롯 선택 화면을 그린다.
         self._text("게임 불러오기", (500, 112), self.title_font, WHITE)
         self._text("저장 슬롯을 선택해", (500, 166), self.subtitle_font, (211, 220, 230))
-        self.buttons = []
+        self.buttons = []  # 저장 슬롯 페이지 버튼 목록을 새로 구성한다.
         for i, slot in enumerate(("SLOT 1", "SLOT 2", "SLOT 3")):
             self._button(slot, 230 + i * 75, i, "저장 데이터 없음")
         self._button("뒤로", 465, 3)
@@ -86,7 +86,7 @@ class Menu:  # 메인·불러오기·크레딧 메뉴 화면을 관리한다.
         self._text("2026 VIAUS 프로젝트", (500, 265), self.subtitle_font, WHITE)
         self._text("Pygame 기반 학습형 플랫폼 게임 프로토타입", (500, 305), self.small, (211, 220, 230))
         self._text("기획 · 개발: SOLO SAT 프로젝트", (500, 340), self.small, (211, 220, 230))
-        self.buttons = []
+        self.buttons = []  # 크레딧 페이지 버튼 목록을 새로 구성한다.
         self._button("뒤로", 425, 0)
 
     def draw(self):  # 현재 페이지와 유효한 알림을 그린다.
@@ -105,19 +105,19 @@ class Menu:  # 메인·불러오기·크레딧 메뉴 화면을 관리한다.
             if index == 0:  # 새 게임 시작을 요청한다.
                 return "new_game"
             if index == 1:  # 저장 슬롯 화면으로 이동한다.
-                self.page, self.selected = "load", 0
+                self.page, self.selected = "load", 0  # 저장 슬롯 페이지와 첫 선택 항목으로 이동한다.
             elif index == 2:  # 크레딧 화면으로 이동한다.
-                self.page, self.selected = "credits", 0
+                self.page, self.selected = "credits", 0  # 크레딧 페이지와 첫 선택 항목으로 이동한다.
             elif index == 3:  # 게임 종료를 요청한다.
                 return "quit"
         elif self.page == "load":  # 저장 슬롯 화면 선택을 처리한다.
             if index == 3:  # 뒤로 버튼으로 메인 메뉴에 돌아간다.
-                self.page, self.selected = "main", 0
+                self.page, self.selected = "main", 0  # 메인 페이지와 첫 선택 항목으로 돌아간다.
             else:  # 아직 저장 연동이 없는 슬롯 안내를 표시한다.
-                self.notice = "이 슬롯에는 저장 데이터가 없어. 새 게임을 시작해줘."
-                self.notice_until = pygame.time.get_ticks() + 2500
+                self.notice = "이 슬롯에는 저장 데이터가 없어. 새 게임을 시작해줘."  # 슬롯 사용 불가 안내
+                self.notice_until = pygame.time.get_ticks() + 2500  # 안내 문구 표시 종료 시각
         else:
-            self.page, self.selected = "main", 0
+            self.page, self.selected = "main", 0  # 하위 페이지에서 메인 메뉴로 돌아간다.
         return None
 
     def run(self):  # 메뉴 입력·그리기 반복을 실행하고 선택 결과를 반환한다.
@@ -130,27 +130,27 @@ class Menu:  # 메인·불러오기·크레딧 메뉴 화면을 관리한다.
                     return "quit"
                 if event.type == pygame.KEYDOWN:  # 키보드 메뉴 조작을 처리한다.
                     if event.key == pygame.K_F11:  # F11로 전체 화면을 전환한다.
-                        self.screen = toggle_fullscreen(self.screen)
+                        self.screen = toggle_fullscreen(self.screen)  # 전체 화면으로 전환한 화면
                     elif event.key == pygame.K_ESCAPE:  # ESC 입력은 페이지를 닫거나 메인 메뉴로 돌아간다.
                         if self.page == "main":  # 메인 페이지에서 ESC를 누르면 종료한다.
                             return "quit"
-                        self.page, self.selected = "main", 0
+                        self.page, self.selected = "main", 0  # 메인 페이지의 첫 항목으로 돌아간다.
                     elif event.key in (pygame.K_UP, pygame.K_w):  # 위 항목으로 선택을 이동한다.
-                        self.selected = max(0, self.selected - 1)
+                        self.selected = max(0, self.selected - 1)  # 선택 번호가 0 아래로 내려가지 않게 한다.
                     elif event.key in (pygame.K_DOWN, pygame.K_s):  # 아래 항목으로 선택을 이동한다.
                         max_index = 3 if self.page in ("main", "load") else 0  # 현재 페이지의 마지막 항목
-                        self.selected = min(max_index, self.selected + 1)
+                        self.selected = min(max_index, self.selected + 1)  # 페이지 마지막 항목을 넘지 않게 한다.
                     elif event.key in (pygame.K_RETURN, pygame.K_SPACE):  # 선택된 버튼을 실행한다.
                         result = self._activate(self.selected)  # 선택 동작의 반환값
                         if result:  # 메뉴 종료 또는 새 게임 요청을 반환한다.
                             return result
                 elif event.type == pygame.MOUSEMOTION:  # 포인터가 가리키는 버튼을 선택한다.
                     for rect, index in self.buttons:
-                        if rect.collidepoint(event.pos):
-                            self.selected = index
+                        if rect.collidepoint(event.pos):  # 포인터가 버튼 위에 있는지 확인한다.
+                            self.selected = index  # 포인터가 가리키는 버튼을 선택한다.
                 elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:  # 왼쪽 클릭한 버튼을 실행한다.
                     for rect, index in self.buttons:
-                        if rect.collidepoint(event.pos):
+                        if rect.collidepoint(event.pos):  # 클릭 위치와 버튼 영역이 겹치는지 확인한다.
                             result = self._activate(index)  # 클릭한 버튼의 동작 결과
                             if result:  # 메뉴 종료 또는 새 게임 요청을 반환한다.
                                 return result

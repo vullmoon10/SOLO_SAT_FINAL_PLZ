@@ -6,7 +6,7 @@ from entities.enemies import Enemy
 
 
 class World(Terrain):  # 지형을 무한 생성하고 오래된 구간을 정리한다.
-    def __init__(self):
+    def __init__(self):  # 시작 지형 구간을 생성한다.
         super().__init__()
         self.generate_chunk(0, 12)
 
@@ -32,7 +32,7 @@ class World(Terrain):  # 지형을 무한 생성하고 오래된 구간을 정�
                     self.add_enemy(px + random.randint(15, max(16, pw - 35)), py)
             if random.random() < 0.4:  # 일정 확률로 지면 위에 적을 배치한다.
                 self.add_enemy(x + random.randint(40, max(41, width - 35)), GROUND_Y)
-            x += width
+            x += width  # 다음 지형 구간의 시작 좌표로 이동한다.
         self.world_end = x  # 새로 생성된 월드의 마지막 좌표를 기록한다.
 
     def add_enemy(self, x, ground_y):  # 지정 위치에 기본 적을 추가한다.
@@ -42,9 +42,9 @@ class World(Terrain):  # 지형을 무한 생성하고 오래된 구간을 정�
         if self.world_end < player_x + WIDTH + 700:  # 월드 끝이 가까우면 다음 구간을 생성한다.
             self.generate_chunk(self.world_end + random.randint(20, 60), 5)
         cutoff = player_x - WIDTH - 300  # 화면 뒤편에서 제거할 기준 좌표
-        self.platforms = [o for o in self.platforms if o.right > cutoff]
-        self.ground_segments = [o for o in self.ground_segments if o.right > cutoff]
-        self.ladders = [o for o in self.ladders if o.right > cutoff]
-        self.spikes = [s for s in self.spikes if s["x"] + s["count"] * 13 > cutoff]
-        self.decorations = [o for o in self.decorations if o.right > cutoff]
-        self.enemies = [o for o in self.enemies if o.rect.right > cutoff]
+        self.platforms = [o for o in self.platforms if o.right > cutoff]  # 플레이어 뒤쪽의 발판을 정리한다.
+        self.ground_segments = [o for o in self.ground_segments if o.right > cutoff]  # 오래된 지면을 정리한다.
+        self.ladders = [o for o in self.ladders if o.right > cutoff]  # 오래된 사다리를 정리한다.
+        self.spikes = [s for s in self.spikes if s["x"] + s["count"] * 13 > cutoff]  # 화면 뒤쪽의 가시를 정리한다.
+        self.decorations = [o for o in self.decorations if o.right > cutoff]  # 오래된 장식을 정리한다.
+        self.enemies = [o for o in self.enemies if o.rect.right > cutoff]  # 오래된 적을 정리한다.
