@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pygame
 from settings import *
 from ui.hud import draw_hud
@@ -7,6 +9,15 @@ from systems.quiz import image_surface
 class Renderer:
     def __init__(self, screen):
         self.screen = screen
+        image_dir = Path(__file__).resolve().parents[1] / "assets" / "images"
+        self.enemy_sprites = {}
+        for filename in ("mob1.jpg", "mob2.jpg"):
+            path = image_dir / filename
+            if path.is_file():
+                try:
+                    self.enemy_sprites[filename] = pygame.image.load(str(path)).convert_alpha()
+                except pygame.error:
+                    pass
 
     def draw_text(self, text, x, y, color=DARK, font=FONT):
         self.screen.blit(font.render(str(text), True, color), (x, y))
@@ -53,10 +64,14 @@ class Renderer:
             rect = enemy.rect.move(-camera_x, 0)
             if rect.right < 0 or rect.left > WIDTH:
                 continue
-            pygame.draw.rect(self.screen, enemy.data["color"], rect, border_radius=4)
-            eye_y = rect.y + rect.height // 3
-            pygame.draw.circle(self.screen, WHITE, (rect.x + rect.width // 3, eye_y), 4)
-            pygame.draw.circle(self.screen, WHITE, (rect.x + 2 * rect.width // 3, eye_y), 4)
+            sprite = self.enemy_sprites.get(enemy.data.get("sprite"))
+            if sprite:
+                self.screen.blit(pygame.transform.smoothscale(sprite, rect.size), rect)
+            else:
+                pygame.draw.rect(self.screen, enemy.data["color"], rect, border_radius=4)
+                eye_y = rect.y + rect.height // 3
+                pygame.draw.circle(self.screen, WHITE, (rect.x + rect.width // 3, eye_y), 4)
+                pygame.draw.circle(self.screen, WHITE, (rect.x + 2 * rect.width // 3, eye_y), 4)
 
     def draw_player(self, player, camera_x, rotation=0):
         rect = player.rect.move(-camera_x, 0)

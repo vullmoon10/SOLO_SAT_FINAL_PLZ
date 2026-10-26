@@ -32,7 +32,9 @@ class AudioManager:
             pass
         for key, filename in {
             "menu": "메뉴 선택.mp3",
-            "damage": "오답,가시 데미지.mp3",
+            "damage": "몹2, 가시 데미지.mp3",
+            "mob2_wrong": "몹2, 가시 데미지.mp3",
+            "mob1_wrong": "몹1 오답.mp3",
             "game_over": "게임오버.mp3",
         }.items():
             path = SOUND_DIR / filename

@@ -2,8 +2,10 @@ import pygame
 from systems.quiz import get_random_question
 
 ENEMY_TYPES = {  # 적 종류별 외형·난이도·보상 설정
-    "basic": {"color": (210, 65, 65), "size": (30, 30), "difficulty": "easy", "hp": 2, "score": 100},
-    "advanced": {"color": (130, 90, 65), "size": (36, 36), "difficulty": "medium", "hp": 4, "score": 200},
+    "basic": {"color": (210, 65, 65), "size": (35, 58), "difficulty": "easy",
+              "sprite": "mob2.jpg", "wrong_sound": "mob2_wrong", "hp": 2, "score": 100},
+    "advanced": {"color": (130, 90, 65), "size": (29, 58), "difficulty": "medium",
+                 "sprite": "mob1.jpg", "wrong_sound": "mob1_wrong", "hp": 4, "score": 200},
 }
 
 
