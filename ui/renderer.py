@@ -58,13 +58,42 @@ class Renderer:
             pygame.draw.circle(self.screen, WHITE, (rect.x + rect.width // 3, eye_y), 4)
             pygame.draw.circle(self.screen, WHITE, (rect.x + 2 * rect.width // 3, eye_y), 4)
 
-    def draw_player(self, player, camera_x):
+    def draw_player(self, player, camera_x, rotation=0):
         rect = player.rect.move(-camera_x, 0)
-        pygame.draw.rect(self.screen, BLUE, rect, border_radius=3)
-        pygame.draw.rect(self.screen, (40, 45, 150), rect, 2, border_radius=3)
+        sprite = pygame.Surface(rect.size, pygame.SRCALPHA)
+        pygame.draw.rect(sprite, BLUE, sprite.get_rect(), border_radius=3)
+        pygame.draw.rect(sprite, (40, 45, 150), sprite.get_rect(), 2, border_radius=3)
+        if rotation:
+            sprite = pygame.transform.rotate(sprite, rotation)
+        self.screen.blit(sprite, sprite.get_rect(center=rect.center))
 
     def draw_hud(self, hp, score, message):
         draw_hud(self.screen, hp, score, message)
+
+    def _pixel_text(self, text, color, scale=2, size=12):
+        font = pygame.font.SysFont("monospace", size, bold=True)
+        glyphs = font.render(str(text), False, color)
+        return pygame.transform.scale(glyphs, (glyphs.get_width() * scale, glyphs.get_height() * scale))
+
+    def draw_game_over(self, score):
+        tint = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+        tint.fill((205, 15, 25, 120))
+        self.screen.blit(tint, (0, 0))
+
+        title = self._pixel_text("GAME OVER", (28, 12, 16), scale=3, size=17)
+        self.screen.blit(title, title.get_rect(center=(WIDTH // 2, int(HEIGHT * 0.28))))
+
+        label = self._pixel_text("Score:", (28, 12, 16), scale=2, size=13)
+        value = self._pixel_text(str(score), (255, 224, 55), scale=3, size=16)
+        gap = 12
+        total_width = label.get_width() + gap + value.get_width()
+        left = (WIDTH - total_width) // 2
+        y = int(HEIGHT * 0.44)
+        self.screen.blit(label, (left, y + (value.get_height() - label.get_height()) // 2))
+        self.screen.blit(value, (left + label.get_width() + gap, y))
+
+        instruction = self._pixel_text("ESC: TITLE SCREEN", (35, 10, 12), scale=2, size=9)
+        self.screen.blit(instruction, instruction.get_rect(center=(WIDTH // 2, int(HEIGHT * 0.78))))
 
     def draw_quiz(self, quiz):
         if not quiz.active:

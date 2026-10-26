@@ -17,18 +17,33 @@ _REMOTE_QUESTIONS = []
 _QUESTION_CLIENT = None
 _SELECTED_SUBJECT = None
 _IMAGE_CACHE = {}
+_LOCAL_MODE = False
+_LOCAL_DECK = []
 
 
-def set_question_source(subject, client, questions):
-    global _REMOTE_QUESTIONS, _QUESTION_CLIENT, _SELECTED_SUBJECT, _IMAGE_CACHE
+def set_question_source(subject, client, questions, local_mode=False):
+    global _REMOTE_QUESTIONS, _QUESTION_CLIENT, _SELECTED_SUBJECT, _IMAGE_CACHE, _LOCAL_MODE, _LOCAL_DECK
     _SELECTED_SUBJECT = subject
     _QUESTION_CLIENT = client
     _REMOTE_QUESTIONS = list(questions or [])
     _IMAGE_CACHE = {}
+    _LOCAL_MODE = local_mode
+    _LOCAL_DECK = []
 
 
 def get_random_question(difficulty=None, subject=None):
+    global _LOCAL_DECK
     subject = subject or _SELECTED_SUBJECT
+    if _LOCAL_MODE:
+        pool = [q for q in QUESTIONS if q.get("subject") == subject]
+        if not pool:
+            return {"subject": subject or "과목 미설정", "difficulty": "easy",
+                    "q": "로컬 문항이 없습니다.", "choices": ["①", "②", "③", "④"],
+                    "answer": 0, "time": QUESTION_TIME}
+        if not _LOCAL_DECK:
+            _LOCAL_DECK = list(pool)
+            random.shuffle(_LOCAL_DECK)
+        return dict(_LOCAL_DECK.pop())
     pool = [q for q in _REMOTE_QUESTIONS if not subject or q.get("subject") == subject]
     if pool:
         question = dict(random.choice(pool))

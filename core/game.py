@@ -11,10 +11,12 @@ from core.display import toggle_fullscreen
 
 
 class Game:
-    def __init__(self, screen, client=None, session=None, resume_state=None, cheats=None):
+    def __init__(self, screen, client=None, session=None, resume_state=None, local_storage=None, audio=None, cheats=None):
         self.screen = screen
         self.clock = pygame.time.Clock()
         self.client = client
+        self.local_storage = local_storage
+        self.audio = audio
         self.session = session or {}
         self.subject = self.session.get("subject", "수학")
         self.cheats = cheats or {}
@@ -50,12 +52,30 @@ class Game:
         self.last_saved = pygame.time.get_ticks()
         self.cheat_request_id = None
         self.last_cheat_poll = 0
+        if self.audio:
+            self.audio.play_game_music()
 
     def show_message(self, text, duration=2500):
         self.message = text
         self.message_until = pygame.time.get_ticks() + duration
 
-    def save_state(self, finished=False):
+    def save_state(self, finished=False, final=False):
+        if self.local_storage:
+            nickname = self.session.get("nickname", "player-1")
+            if finished:
+                self.local_storage.record_score(nickname, self.score, self.subject)
+                self.local_storage.clear_save()
+            else:
+                state = {"nickname": nickname, "subject": self.subject, "score": self.score,
+                         "hp": self.hp, "world_seed": self.world.seed, "player_x": self.player.rect.x,
+                         "player_y": self.player.rect.y, "camera_x": self.camera_x,
+                         "enemy_states": {str(enemy.rect.x): {"hp": enemy.hp, "active": enemy.active}
+                                          for enemy in self.world.enemies}}
+                self.local_storage.save(state)
+                if final:
+                    self.local_storage.record_score(nickname, self.score, self.subject)
+            self.last_saved = pygame.time.get_ticks()
+            return
         if not self.client or not self.session.get("player_id"):
             return
         state = {"nickname": self.session.get("nickname", ""), "subject": self.subject,
@@ -96,9 +116,18 @@ class Game:
             return
         self.score = add_score(self.score, result["score"])
         self.hp = apply_damage(self.hp, result["damage"])
+        if result["damage"] > 0 and self.audio:
+            self.audio.play_effect("damage")
         self.show_message(result["message"])
         if self.hp <= 0:
-            self.game_over = True
+            self.set_game_over()
+
+    def set_game_over(self):
+        if self.game_over:
+            return
+        self.game_over = True
+        if self.audio:
+            self.audio.play_game_over()
 
     def open_nearby_enemy(self):
         nearby = self.player.rect.inflate(60, 45)
@@ -150,7 +179,9 @@ class Game:
                 spike_rect = pygame.Rect(spike["x"], spike["y"] - 14, spike["count"] * 13, 14)
                 if self.player.rect.colliderect(spike_rect):
                     if not self.cheats.get("no_damage"):
-                        self.hp = max(0, self.hp - 10)
+                        self.hp = max(0, self.hp - 1)
+                        if self.audio:
+                            self.audio.play_effect("damage")
                     self.damage_cooldown_until = now + 900
                     self.player.rect.bottom = min(self.player.rect.bottom, 500)
                     self.player.vy = -4
@@ -168,27 +199,23 @@ class Game:
             if not self.cheats.get("no_damage"):
                 self.hp = max(0, self.hp - 10)
         if self.hp <= 0:
-            self.game_over = True
+            self.set_game_over()
 
     def draw(self):
         self.renderer.draw_background(self.camera_x)
         self.renderer.draw_world(self.world, self.camera_x)
-        self.renderer.draw_player(self.player, self.camera_x)
+        self.renderer.draw_player(self.player, self.camera_x, rotation=90 if self.game_over else 0)
         message = self.message if pygame.time.get_ticks() < self.message_until else ""
         self.renderer.draw_hud(self.hp, self.score, message)
         self.renderer.draw_quiz(self.quiz)
         if self.game_over:
-            overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
-            overlay.fill((0, 0, 0, 190))
-            self.screen.blit(overlay, (0, 0))
-            self.renderer.draw_text("GAME OVER", 390, 240, (255, 255, 255))
-            self.renderer.draw_text(f"최종 점수: {self.score}", 390, 290, (255, 255, 255))
-            self.renderer.draw_text("ESC를 눌러 종료", 390, 340, (255, 255, 255))
-
+            self.renderer.draw_game_over(self.score)
     def run(self):
         while self.running:
             self.clock.tick(60)
             for event in pygame.event.get():
+                if self.audio and self.audio.handle_music_event(event):
+                    continue
                 self.handle_event(event)
             self.update()
             self.apply_quiz_result(self.quiz.check_timeout())
@@ -197,4 +224,4 @@ class Game:
                 self.save_state()
             self.draw()
             pygame.display.flip()
-        self.save_state(finished=self.game_over)
+        self.save_state(finished=self.game_over, final=True)

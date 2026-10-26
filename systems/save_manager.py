@@ -8,6 +8,7 @@ class SaveManager:  # 진행 데이터를 JSON 파일로 저장하고 불러오�
         self.path = Path(path)  # 저장 경로 객체
 
     def save(self, data):  # 전달받은 데이터를 JSON 파일에 기록
+        self.path.parent.mkdir(parents=True, exist_ok=True)
         self.path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
 
     def load(self):  # 저장 파일을 읽어 데이터로 반환
