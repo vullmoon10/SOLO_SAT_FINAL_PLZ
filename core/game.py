@@ -48,6 +48,8 @@ class Game:
         self.message_until = 0
         self.running = True
         self.game_over = False
+        self.paused = False
+        self.paused_at = 0
         self.countdown_until = pygame.time.get_ticks() + 5000
         self.damage_cooldown_until = 0
         self.last_saved = pygame.time.get_ticks()
@@ -148,21 +150,34 @@ class Game:
             self.screen = toggle_fullscreen(self.screen)
             self.renderer.screen = self.screen
             return
-        if pygame.time.get_ticks() < self.countdown_until:
-            if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
-                self.running = False
-            return
         if self.game_over:
             if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
                 self.running = False
+            return
+        if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+            now = pygame.time.get_ticks()
+            self.paused = not self.paused
+            if self.paused:
+                self.paused_at = now
+            else:
+                paused_duration = now - self.paused_at
+                if now < self.countdown_until:
+                    self.countdown_until += paused_duration
+                if self.quiz.active:
+                    self.quiz.started += paused_duration
+                self.paused_at = 0
+            if self.audio:
+                self.audio.set_paused(self.paused)
+            return
+        if self.paused:
+            return
+        if pygame.time.get_ticks() < self.countdown_until:
             return
         if self.quiz.active:
             handle_quiz_event(event, self.quiz, self.apply_quiz_result)
             return
         if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_ESCAPE:
-                self.running = False
-            elif event.key == pygame.K_SPACE:
+            if event.key == pygame.K_SPACE:
                 self.player.jump()
             elif event.key == pygame.K_e:
                 self.open_nearby_enemy()
@@ -178,7 +193,7 @@ class Game:
                         self.show_message(str(exc))
 
     def update(self):
-        if self.game_over or self.quiz.active or pygame.time.get_ticks() < self.countdown_until:
+        if self.game_over or self.paused or self.quiz.active or pygame.time.get_ticks() < self.countdown_until:
             return
         self.player.update(pygame.key.get_pressed(), self.world)
         now = pygame.time.get_ticks()
@@ -218,6 +233,8 @@ class Game:
         self.renderer.draw_quiz(self.quiz)
         if self.game_over:
             self.renderer.draw_game_over(self.score)
+        elif self.paused:
+            self.renderer.draw_pause_overlay()
         elif pygame.time.get_ticks() < self.countdown_until:
             seconds = max(1, (self.countdown_until - pygame.time.get_ticks() + 999) // 1000)
             self.renderer.draw_start_countdown(seconds)
@@ -229,7 +246,8 @@ class Game:
                     continue
                 self.handle_event(event)
             self.update()
-            self.apply_quiz_result(self.quiz.check_timeout())
+            if not self.paused:
+                self.apply_quiz_result(self.quiz.check_timeout())
             self.poll_cheat()
             if pygame.time.get_ticks() - self.last_saved >= 10_000:
                 self.save_state()

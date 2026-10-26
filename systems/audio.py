@@ -18,6 +18,7 @@ class AudioManager:
         ]
         self.track_index = 0
         self.cycle_started = False
+        self.paused = False
         self.available = False
         try:
             if not pygame.mixer.get_init():
@@ -50,9 +51,25 @@ class AudioManager:
         sound = self.effects.get(name) if self.available else None
         if sound:
             try:
-                sound.play()
+                channel = sound.play()
+                if self.paused and channel:
+                    channel.pause()
             except pygame.error:
                 pass
+
+    def set_paused(self, paused):
+        if not self.available or self.paused == paused:
+            return
+        self.paused = paused
+        try:
+            if paused:
+                pygame.mixer.music.pause()
+                pygame.mixer.pause()
+            else:
+                pygame.mixer.music.unpause()
+                pygame.mixer.unpause()
+        except pygame.error:
+            pass
 
     def play_game_over(self):
         if not self.available:

@@ -128,6 +128,13 @@ class Renderer:
         self.screen.blit(title, title.get_rect(center=(WIDTH // 2, HEIGHT // 2 - 75)))
         self.screen.blit(number, number.get_rect(center=(WIDTH // 2, HEIGHT // 2 + 40)))
 
+    def draw_pause_overlay(self):
+        overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+        overlay.fill((10, 15, 25, 175))
+        self.screen.blit(overlay, (0, 0))
+        label = TITLE_FONT.render("PAUSED · ESC로 계속", True, WHITE)
+        self.screen.blit(label, label.get_rect(center=(WIDTH // 2, HEIGHT // 2)))
+
     def draw_player(self, player, camera_x, rotation=0):
         rect = player.rect.move(-camera_x, 0)
         sprite = pygame.Surface(rect.size, pygame.SRCALPHA)
