@@ -3,14 +3,14 @@ from settings import *
 from ui.hud import draw_hud
 
 
-class Renderer:  # 월드·플레이어·퀴즈 화면 렌더링을 담당한다.
-    def __init__(self, screen):  # 렌더링할 게임 화면을 지정한다.
+class Renderer:  # 월드·플레이어·퀴즈 화면 렌더링을 담당
+    def __init__(self, screen):  # 렌더링할 게임 화면을 지정
         self.screen = screen  # 렌더링 대상 화면
 
-    def draw_text(self, text, x, y, color=DARK, font=FONT):  # 지정한 위치와 스타일로 텍스트를 그린다.
+    def draw_text(self, text, x, y, color=DARK, font=FONT):  # 지정한 위치와 스타일로 텍스트를 그리기
         self.screen.blit(font.render(str(text), True, color), (x, y))
 
-    def draw_background(self, camera_x):  # 카메라 위치에 맞춘 배경 산과 구름을 그린다.
+    def draw_background(self, camera_x):  # 카메라 위치에 맞춘 배경 산과 구름을 그리기
         self.screen.fill(SKY)
         for i in range(-1, 7):
             x = i * 260 - int(camera_x * 0.18) % 260  # 카메라 움직임을 반영한 산의 가로 위치
@@ -21,20 +21,20 @@ class Renderer:  # 월드·플레이어·퀴즈 화면 렌더링을 담당한다
             for cx, cy, radius in [(x,y,17),(x+20,y-8,20),(x+40,y,15)]:
                 pygame.draw.circle(self.screen, WHITE, (cx, cy), radius)
 
-    def draw_world(self, world, camera_x):  # 월드 지형·장애물·적을 화면에 그린다.
+    def draw_world(self, world, camera_x):  # 월드 지형·장애물·적을 화면에 그리기
         for segment in world.ground_segments:
             rect = segment.move(-camera_x, 0)  # 카메라 좌표를 반영한 지면 영역
-            if rect.right >= 0 and rect.left <= WIDTH:  # 화면에 보이는 지면만 렌더링한다.
+            if rect.right >= 0 and rect.left <= WIDTH:  # 화면에 보이는 지면만 렌더링
                 pygame.draw.rect(self.screen, DIRT, rect)
                 pygame.draw.rect(self.screen, GRASS, (rect.x, rect.y, rect.width, 7))
         for platform in world.platforms:
             rect = platform.move(-camera_x, 0)  # 카메라 좌표를 반영한 발판 영역
-            if rect.right >= 0 and rect.left <= WIDTH:  # 화면에 보이는 발판만 렌더링한다.
+            if rect.right >= 0 and rect.left <= WIDTH:  # 화면에 보이는 발판만 렌더링
                 pygame.draw.rect(self.screen, PLATFORM_COLOR, rect)
                 pygame.draw.rect(self.screen, GRASS, (rect.x, rect.y, rect.width, 4))
         for ladder in world.ladders:
             rect = ladder.move(-camera_x, 0)  # 카메라 좌표를 반영한 사다리 영역
-            if rect.right < 0 or rect.left > WIDTH:  # 화면 밖 사다리는 그리지 않는다.
+            if rect.right < 0 or rect.left > WIDTH:  # 화면 밖 사다리 렌더링 생략
                 continue
             pygame.draw.line(self.screen, (180,100,55), rect.topleft, (rect.left,rect.bottom), 3)
             pygame.draw.line(self.screen, (180,100,55), (rect.right,rect.top), (rect.right,rect.bottom), 3)
@@ -42,7 +42,7 @@ class Renderer:  # 월드·플레이어·퀴즈 화면 렌더링을 담당한다
                 pygame.draw.line(self.screen, (180,100,55), (rect.left,y), (rect.right,y), 3)
         for item in world.decorations:
             rect = item.move(-camera_x, 0)  # 카메라 좌표를 반영한 장식 영역
-            if rect.right >= 0 and rect.left <= WIDTH:  # 화면에 보이는 장식만 렌더링한다.
+            if rect.right >= 0 and rect.left <= WIDTH:  # 화면에 보이는 장식만 렌더링
                 pygame.draw.rect(self.screen, DIRT, rect)
                 pygame.draw.rect(self.screen, (91,57,36), rect, 2)
         for spike in world.spikes:
@@ -51,26 +51,26 @@ class Renderer:  # 월드·플레이어·퀴즈 화면 렌더링을 담당한다
                 sx = x + i * 13  # 개별 가시의 가로 좌표
                 pygame.draw.polygon(self.screen, (220,45,65), [(sx,y),(sx+7,y-15),(sx+13,y)])
         for enemy in world.enemies:
-            if not enemy.active:  # 처치된 적은 렌더링하지 않는다.
+            if not enemy.active:  # 처치된 적 렌더링 생략
                 continue
             rect = enemy.rect.move(-camera_x, 0)  # 카메라 좌표를 반영한 적 영역
-            if rect.right < 0 or rect.left > WIDTH:  # 화면 밖 적은 그리지 않는다.
+            if rect.right < 0 or rect.left > WIDTH:  # 화면 밖 적 렌더링 생략
                 continue
             pygame.draw.rect(self.screen, enemy.data["color"], rect, border_radius=4)
             eye_y = rect.y + rect.height // 3  # 적 눈의 세로 위치
             pygame.draw.circle(self.screen, WHITE, (rect.x + rect.width//3, eye_y), 4)
             pygame.draw.circle(self.screen, WHITE, (rect.x + 2*rect.width//3, eye_y), 4)
 
-    def draw_player(self, player, camera_x):  # 카메라 위치를 반영해 플레이어를 그린다.
+    def draw_player(self, player, camera_x):  # 카메라 위치를 반영해 플레이어를 그리기
         rect = player.rect.move(-camera_x, 0)  # 화면 좌표로 변환한 플레이어 영역
         pygame.draw.rect(self.screen, BLUE, rect, border_radius=3)
         pygame.draw.rect(self.screen, (40,45,150), rect, 2, border_radius=3)
 
-    def draw_hud(self, hp, score, message):  # 체력·점수·알림 UI를 렌더링한다.
+    def draw_hud(self, hp, score, message):  # 체력·점수·알림 UI를 렌더링
         draw_hud(self.screen, hp, score, message)
 
-    def draw_quiz(self, quiz):  # 활성 퀴즈와 답변 선택 UI를 그린다.
-        if not quiz.active:  # 진행 중인 퀴즈가 없으면 그리기를 생략한다.
+    def draw_quiz(self, quiz):  # 활성 퀴즈와 답변 선택 UI를 그리기
+        if not quiz.active:  # 진행 중인 퀴즈가 없으면 그리기를 생략
             return
         q = quiz.enemy.question  # 현재 출제 중인 문제 데이터
         remaining = quiz.remaining()  # 문제 제한 시간의 남은 초
@@ -91,7 +91,7 @@ class Renderer:  # 월드·플레이어·퀴즈 화면 렌더링을 담당한다
             option = pygame.Rect(205,245+i*48,590,39)  # 선택지 버튼 영역
             selected = i == quiz.selected  # 현재 선택된 답인지 여부
             pygame.draw.rect(self.screen,(190,220,255) if selected else GRAY,option,border_radius=5)
-            if selected:  # 현재 선택된 답에 강조 테두리를 그린다.
+            if selected:  # 현재 선택된 답에 강조 테두리를 그리기
                 pygame.draw.rect(self.screen,(55,110,220),option,2,border_radius=5)
             self.draw_text(f"{i+1}. {choice}",220,option.y+8,DARK,SMALL)
         self.draw_text("↑/↓ 선택 · Enter 제출 · 마우스 클릭",210,450,DARK,SMALL)

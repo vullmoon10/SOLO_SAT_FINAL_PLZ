@@ -7,8 +7,8 @@ ENEMY_TYPES = {  # 적 종류별 외형·난이도·보상 설정
 }
 
 
-class Enemy:  # 퀴즈로 처치하는 적의 상태를 관리한다.
-    def __init__(self, x, ground_y, enemy_type="basic"):  # 위치와 종류에 맞춰 적을 초기화한다.
+class Enemy:  # 퀴즈로 처치하는 적의 상태를 관리
+    def __init__(self, x, ground_y, enemy_type="basic"):  # 위치와 종류에 맞춰 적을 초기화
         self.enemy_type = enemy_type  # 적 종류 식별자
         self.data = ENEMY_TYPES[enemy_type]  # 종류별 적 설정
         width, height = self.data["size"]  # 적의 가로·세로 크기
@@ -17,10 +17,10 @@ class Enemy:  # 퀴즈로 처치하는 적의 상태를 관리한다.
         self.active = True  # 적 생존 여부
         self.question = get_random_question(self.data["difficulty"])  # 적 난이도에 맞는 첫 문제
 
-    def defeat(self):  # 정답 처리로 적의 체력을 줄이고 처치 여부를 반환한다.
-        self.hp -= 1  # 정답을 맞힐 때 적 체력을 1 감소시킨다.
-        if self.hp <= 0:  # 체력이 0 이하이면 적을 비활성화한다.
-            self.active = False  # 체력이 소진된 적을 비활성화한다.
+    def defeat(self):  # 정답 처리로 적의 체력을 줄이고 처치 여부를 반환
+        self.hp -= 1  # 정답 시 적 체력 1 감소
+        if self.hp <= 0:  # 체력이 0 이하이면 적을 비활성화
+            self.active = False  # 체력이 소진된 적을 비활성화
             return True
         self.question = get_random_question(self.data["difficulty"])  # 남은 체력에 도전할 새 문제
         return False
