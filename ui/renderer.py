@@ -1,4 +1,5 @@
 from pathlib import Path
+import math
 
 import pygame
 from settings import *
@@ -11,13 +12,48 @@ class Renderer:
         self.screen = screen
         image_dir = Path(__file__).resolve().parents[1] / "assets" / "images"
         self.enemy_sprites = {}
-        for filename in ("mob1.jpg", "mob2.jpg"):
+        for filename in ("mob11.jpg", "mob2.jpg"):
             path = image_dir / filename
             if path.is_file():
                 try:
-                    self.enemy_sprites[filename] = pygame.image.load(str(path)).convert_alpha()
-                except pygame.error:
+                    sprite = pygame.image.load(str(path)).convert_alpha()
+                    background = pygame.mask.from_threshold(
+                        sprite, (255, 255, 255), (45, 45, 45, 255)
+                    ).connected_component((0, 0))
+                    for y in range(sprite.get_height()):
+                        for x in range(sprite.get_width()):
+                            if not background.get_at((x, y)):
+                                continue
+                            red, green, blue, _ = sprite.get_at((x, y))
+                            alpha = 255 - min(red, green, blue)
+                            if alpha < 32:
+                                sprite.set_at((x, y), (0, 0, 0, 0))
+                                continue
+                            # Remove the white matte from edge pixels before making them translucent.
+                            matte = 255 - alpha
+                            red = max(0, min(255, round((red - matte) * 255 / alpha)))
+                            green = max(0, min(255, round((green - matte) * 255 / alpha)))
+                            blue = max(0, min(255, round((blue - matte) * 255 / alpha)))
+                            sprite.set_at((x, y), (red, green, blue, alpha))
+                    self.enemy_sprites[filename] = sprite
+                except (pygame.error, TypeError, ValueError, AttributeError):
                     pass
+        self.wrong_overlay = None
+        wrong_path = image_dir / "mob2-오답.jpg"
+        if wrong_path.is_file():
+            try:
+                source = pygame.image.load(str(wrong_path)).convert()
+                source = source.subsurface(pygame.Rect(0, 46, source.get_width(), source.get_height() - 90))
+                keyed = pygame.Surface(source.get_size(), pygame.SRCALPHA)
+                keyed.blit(source, (0, 0))
+                for y in range(keyed.get_height()):
+                    for x in range(keyed.get_width()):
+                        red, green, blue, _ = keyed.get_at((x, y))
+                        if green > 100 and green > red * 1.35 and green > blue * 1.25:
+                            keyed.set_at((x, y), (red, green, blue, 0))
+                self.wrong_overlay = pygame.transform.smoothscale(keyed, (120, 90))
+            except (pygame.error, ValueError):
+                pass
 
     def draw_text(self, text, x, y, color=DARK, font=FONT):
         self.screen.blit(font.render(str(text), True, color), (x, y))
@@ -25,10 +61,11 @@ class Renderer:
     def draw_background(self, camera_x):
         self.screen.fill(SKY)
         for i in range(-1, 7):
-            x = i * 260 - int(camera_x * 0.18) % 260
+            x = i * 260 - int(camera_x) % 260
             pygame.draw.polygon(self.screen, MOUNTAIN, [(x, 520), (x + 125, 360 + (i % 3) * 30), (x + 260, 520)])
+        cloud_offset = int(pygame.time.get_ticks() * 0.025)
         for i in range(6):
-            x = (i * 210 - int(camera_x * 0.3)) % (WIDTH + 180) - 80
+            x = (i * 210 - cloud_offset) % (WIDTH + 180) - 80
             y = 90 + (i % 3) * 55
             for cx, cy, radius in [(x, y, 17), (x + 20, y - 8, 20), (x + 40, y, 15)]:
                 pygame.draw.circle(self.screen, WHITE, (cx, cy), radius)
@@ -66,12 +103,30 @@ class Renderer:
                 continue
             sprite = self.enemy_sprites.get(enemy.data.get("sprite"))
             if sprite:
-                self.screen.blit(pygame.transform.smoothscale(sprite, rect.size), rect)
+                phase = pygame.time.get_ticks() * 0.004 + enemy.rect.x * 0.035
+                bob = math.sin(phase) * 2.5
+                stretch = 1.0 + math.sin(phase * 2) * 0.035
+                animated_size = (rect.width, max(1, int(rect.height * stretch)))
+                animated = pygame.transform.smoothscale(sprite, animated_size)
+                animated = pygame.transform.rotozoom(animated, math.sin(phase) * 3, 1)
+                animated_rect = animated.get_rect(center=(rect.centerx, int(rect.centery + bob)))
+                self.screen.blit(animated, animated_rect)
             else:
                 pygame.draw.rect(self.screen, enemy.data["color"], rect, border_radius=4)
                 eye_y = rect.y + rect.height // 3
                 pygame.draw.circle(self.screen, WHITE, (rect.x + rect.width // 3, eye_y), 4)
                 pygame.draw.circle(self.screen, WHITE, (rect.x + 2 * rect.width // 3, eye_y), 4)
+            if enemy.enemy_type == "advanced" and enemy.wrong_until > pygame.time.get_ticks() and self.wrong_overlay:
+                self.screen.blit(self.wrong_overlay, self.wrong_overlay.get_rect(center=rect.center))
+
+    def draw_start_countdown(self, seconds):
+        overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+        overlay.fill((10, 15, 25, 175))
+        self.screen.blit(overlay, (0, 0))
+        title = TITLE_FONT.render("게임 시작", True, WHITE)
+        number = pygame.font.SysFont("malgungothic", 110, bold=True).render(str(seconds), True, YELLOW)
+        self.screen.blit(title, title.get_rect(center=(WIDTH // 2, HEIGHT // 2 - 75)))
+        self.screen.blit(number, number.get_rect(center=(WIDTH // 2, HEIGHT // 2 + 40)))
 
     def draw_player(self, player, camera_x, rotation=0):
         rect = player.rect.move(-camera_x, 0)

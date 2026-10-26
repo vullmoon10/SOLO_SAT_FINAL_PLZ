@@ -116,6 +116,7 @@ class Quiz:
             damage = 0 if self.cheats.get("no_damage") else WRONG_DAMAGE
             result = {"correct": False, "damage": damage, "score": 0, "defeated": False,
                       "wrong_sound": enemy.data.get("wrong_sound", "damage"),
+                      "enemy": enemy,
                       "message": "오답! 피해 없음" if damage == 0 else f"오답! 체력 -{damage}"}
         self.feedback = result["message"]
         self.feedback_until = pygame.time.get_ticks() + 1000
@@ -131,6 +132,7 @@ class Quiz:
             self.enemy = None
             return {"correct": False, "damage": damage, "score": 0,
                     "wrong_sound": enemy.data.get("wrong_sound", "damage"),
+                    "enemy": enemy,
                     "defeated": False, "message": "시간 초과!"}
         return None
 

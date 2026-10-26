@@ -48,6 +48,7 @@ class Game:
         self.message_until = 0
         self.running = True
         self.game_over = False
+        self.countdown_until = pygame.time.get_ticks() + 5000
         self.damage_cooldown_until = 0
         self.last_saved = pygame.time.get_ticks()
         self.cheat_request_id = None
@@ -114,10 +115,13 @@ class Game:
     def apply_quiz_result(self, result):
         if result is None:
             return
+        enemy = result.get("enemy")
+        if not result["correct"] and enemy and enemy.enemy_type == "advanced":
+            enemy.wrong_until = pygame.time.get_ticks() + 1800
         self.score = add_score(self.score, result["score"])
         self.hp = apply_damage(self.hp, result["damage"])
         if result["damage"] > 0 and self.audio:
-            self.audio.play_effect("damage")
+            self.audio.play_effect(result.get("wrong_sound", "damage"))
         self.show_message(result["message"])
         if self.hp <= 0:
             self.set_game_over()
@@ -143,6 +147,10 @@ class Game:
         if event.type == pygame.KEYDOWN and event.key == pygame.K_F11:
             self.screen = toggle_fullscreen(self.screen)
             self.renderer.screen = self.screen
+            return
+        if pygame.time.get_ticks() < self.countdown_until:
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                self.running = False
             return
         if self.game_over:
             if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
@@ -170,7 +178,7 @@ class Game:
                         self.show_message(str(exc))
 
     def update(self):
-        if self.game_over or self.quiz.active:
+        if self.game_over or self.quiz.active or pygame.time.get_ticks() < self.countdown_until:
             return
         self.player.update(pygame.key.get_pressed(), self.world)
         now = pygame.time.get_ticks()
@@ -210,6 +218,9 @@ class Game:
         self.renderer.draw_quiz(self.quiz)
         if self.game_over:
             self.renderer.draw_game_over(self.score)
+        elif pygame.time.get_ticks() < self.countdown_until:
+            seconds = max(1, (self.countdown_until - pygame.time.get_ticks() + 999) // 1000)
+            self.renderer.draw_start_countdown(seconds)
     def run(self):
         while self.running:
             self.clock.tick(60)

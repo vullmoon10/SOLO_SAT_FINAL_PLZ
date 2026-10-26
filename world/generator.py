@@ -39,7 +39,8 @@ class World(Terrain):
         self.world_end = x
 
     def add_enemy(self, x, ground_y):
-        self.enemies.append(Enemy(x, ground_y))
+        enemy_type = "advanced" if self.rng.random() < 0.35 else "basic"
+        self.enemies.append(Enemy(x, ground_y, enemy_type))
 
     def update_generation(self, player_x):
         if self.world_end < player_x + WIDTH + 700:
