@@ -28,9 +28,9 @@ Windows에서는 `run_game.py.bat`을 실행해도 된다.
 ## 치트 모드(선택)
 기본 실행은 일반 모드다. 치트를 쓸 경우 실행 전에 `SOLO_SAT_CHEAT` 환경변수에 1~5를 설정한다.
 - 1: No Damage
-- 2: Superspeed
-- 3: Superjump
-- 4: Superspeed + Superjump
+- 2: Hyper Speed
+- 3: Hyper Jump
+- 4: Hyper Diagonal
 - 5: Ultimate
 
 PowerShell 예시: `$env:SOLO_SAT_CHEAT="1"; python main.py`
