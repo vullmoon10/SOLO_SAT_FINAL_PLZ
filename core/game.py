@@ -3,127 +3,198 @@ from settings import WIDTH, HEIGHT, MAX_HP, choose_cheat
 from entities.player import Player
 from world.generator import World
 from systems.quiz import Quiz
-from systems.combat import apply_daansmage
+from systems.combat import apply_damage
 from systems.progression import add_score
 from ui.renderer import Renderer
 from core.events import handle_quiz_event
 from core.display import toggle_fullscreen
 
 
-class Game:  # 플레이어·월드·퀴즈를 묶어 게임 진행을 관리
-    def __init__(self, screen):  # 화면과 게임 시스템의 초기 상태를 설정
-        self.screen = screen  # 현재 게임 화면
-        self.clock = pygame.time.Clock()  # 프레임 속도 조절 시계
-        self.cheats = choose_cheat()  # 실행 환경에서 선택한 치트 설정
-        self.player = Player(cheats=self.cheats)  # 플레이어 객체
-        self.world = World()  # 진행 중 생성되는 게임 월드
-        self.quiz = Quiz(cheats=self.cheats)  # 적과 연결된 퀴즈 시스템
-        self.renderer = Renderer(screen)  # 화면 렌더러
-        self.camera_x = self.score = 0  # 카메라 시작 좌표와 초기 점수
-        self.hp = MAX_HP  # 플레이어의 시작 체력
-        self.message = ""  # 화면에 표시할 알림 문구
-        self.message_until = 0  # 알림 표시 종료 시각
-        self.running = True  # 메인 루프 실행 여부
-        self.game_over = False  # 게임 오버 상태
-        self.damage_cooldown_until = 0  # 다음 충돌 피해가 허용되는 시각
+class Game:
+    def __init__(self, screen, client=None, session=None, resume_state=None, cheats=None):
+        self.screen = screen
+        self.clock = pygame.time.Clock()
+        self.client = client
+        self.session = session or {}
+        self.subject = self.session.get("subject", "수학")
+        self.cheats = cheats or {}
+        self.player = Player(cheats=self.cheats)
+        seed = (resume_state or {}).get("world_seed")
+        self.world = World(seed=seed)
+        self.camera_x = 0
+        if resume_state:
+            player_x = max(0, int(resume_state.get("player_x", 60)))
+            while self.world.world_end < player_x + WIDTH + 700:
+                self.world.update_generation(player_x)
+            enemy_states = resume_state.get("enemy_states", {})
+            defeated = set(resume_state.get("defeated_enemies", []))
+            for enemy in self.world.enemies:
+                saved = enemy_states.get(str(enemy.rect.x))
+                if saved:
+                    enemy.hp = int(saved.get("hp", enemy.hp))
+                    enemy.active = bool(saved.get("active", enemy.active))
+                elif enemy.rect.x in defeated:
+                    enemy.active = False
+            self.player.rect.x = player_x
+            self.player.rect.y = int(resume_state.get("player_y", 450))
+            self.camera_x = max(0, int(resume_state.get("camera_x", 0)))
+        self.quiz = Quiz(cheats=self.cheats)
+        self.renderer = Renderer(screen)
+        self.score = int((resume_state or {}).get("score", 0))
+        self.hp = int((resume_state or {}).get("hp", MAX_HP))
+        self.message = ""
+        self.message_until = 0
+        self.running = True
+        self.game_over = False
+        self.damage_cooldown_until = 0
+        self.last_saved = pygame.time.get_ticks()
+        self.cheat_request_id = None
+        self.last_cheat_poll = 0
 
-    def show_message(self, text, duration=2000):  # 일정 시간 동안 화면 알림을 표시
-        self.message = text  # 표시할 알림 내용
-        self.message_until = pygame.time.get_ticks() + duration  # 알림 종료 시각
+    def show_message(self, text, duration=2500):
+        self.message = text
+        self.message_until = pygame.time.get_ticks() + duration
 
-    def apply_quiz_result(self, result):  # 퀴즈 결과에 따라 점수와 체력을 갱신
-        if result is None:  # 결과가 없으면 반영할 작업이 없음
+    def save_state(self, finished=False):
+        if not self.client or not self.session.get("player_id"):
             return
-        self.score = add_score(self.score, result["score"])  # 퀴즈에서 획득한 점수를 누적
-        self.hp = apply_damage(self.hp, result["damage"])  # 퀴즈 결과 피해량을 체력에 반영
-        self.show_message(result["message"])
-        if self.hp <= 0:  # 체력이 모두 소진되면 게임 오버로 전환
-            self.game_over = True  # 체력 0 이하 시 게임 오버
+        state = {"nickname": self.session.get("nickname", ""), "subject": self.subject,
+                 "score": self.score, "hp": self.hp, "world_seed": self.world.seed,
+                 "player_x": self.player.rect.x, "player_y": self.player.rect.y,
+                 "camera_x": self.camera_x,
+                 "enemy_states": {str(enemy.rect.x): {"hp": enemy.hp, "active": enemy.active}
+                                  for enemy in self.world.enemies}}
+        try:
+            if finished:
+                self.client.finish(self.session["player_id"], self.score, self.subject)
+            else:
+                self.client.save(self.session["player_id"], state)
+            self.last_saved = pygame.time.get_ticks()
+        except RuntimeError as exc:
+            self.show_message(str(exc))
 
-    def open_nearby_enemy(self):  # 플레이어 주변에 있는 적의 퀴즈를 열기
-        nearby = self.player.rect.inflate(60,45)  # 상호작용을 위한 탐색 범위
+    def poll_cheat(self):
+        if not self.cheat_request_id or pygame.time.get_ticks() - self.last_cheat_poll < 2500:
+            return
+        self.last_cheat_poll = pygame.time.get_ticks()
+        try:
+            status = self.client.cheat_status(self.cheat_request_id)
+        except (RuntimeError, AttributeError):
+            return
+        if status.get("status") == "approved":
+            self.cheats = choose_cheat("5")
+            self.player.cheats = self.cheats
+            self.quiz.cheats = self.cheats
+            self.show_message("관리자가 치트를 승인했습니다.")
+            self.cheat_request_id = None
+        elif status.get("status") in ("denied", "missing"):
+            self.show_message("치트 요청이 승인되지 않았습니다.")
+            self.cheat_request_id = None
+
+    def apply_quiz_result(self, result):
+        if result is None:
+            return
+        self.score = add_score(self.score, result["score"])
+        self.hp = apply_damage(self.hp, result["damage"])
+        self.show_message(result["message"])
+        if self.hp <= 0:
+            self.game_over = True
+
+    def open_nearby_enemy(self):
+        nearby = self.player.rect.inflate(60, 45)
         for enemy in self.world.enemies:
-            if enemy.active and nearby.colliderect(enemy.rect):  # 활성 상태이며 범위 안인 적을 찾기
+            if enemy.active and nearby.colliderect(enemy.rect):
                 self.quiz.open(enemy)
                 return
 
-    def handle_event(self, event):  # 현재 상태에 맞춰 게임 입력을 처리
-        if event.type == pygame.QUIT:  # 창 닫기 요청 시 게임 루프를 종료
-            self.running = False  # 게임 반복을 종료하도록 설정
+    def handle_event(self, event):
+        if event.type == pygame.QUIT:
+            self.running = False
             return
-        if event.type == pygame.KEYDOWN and event.key == pygame.K_F11:  # F11로 전체 화면을 전환
-            self.screen = toggle_fullscreen(self.screen)  # 전체 화면으로 전환한 화면
-            self.renderer.screen = self.screen  # 렌더러의 화면 참조도 갱신
+        if event.type == pygame.KEYDOWN and event.key == pygame.K_F11:
+            self.screen = toggle_fullscreen(self.screen)
+            self.renderer.screen = self.screen
             return
-        if self.game_over:  # 게임 오버 중 종료 입력만 처리
-            if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:  # ESC로 게임을 종료
-                self.running = False  # 게임 반복을 종료하도록 설정
+        if self.game_over:
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                self.running = False
             return
-        if self.quiz.active:  # 퀴즈가 열려 있으면 입력을 퀴즈 처리기로 전달
-            handle_quiz_event(event,self.quiz,self.apply_quiz_result)
+        if self.quiz.active:
+            handle_quiz_event(event, self.quiz, self.apply_quiz_result)
             return
-        if event.type == pygame.KEYDOWN:  # 일반 게임 중 키보드 조작을 처리
-            if event.key == pygame.K_ESCAPE:  # ESC로 게임을 종료
-                self.running = False  # 게임 반복을 종료하도록 설정
-            elif event.key == pygame.K_SPACE:  # 스페이스 키로 점프
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_ESCAPE:
+                self.running = False
+            elif event.key == pygame.K_SPACE:
                 self.player.jump()
-            elif event.key == pygame.K_e:  # E 키로 주변 적의 퀴즈를 열기
+            elif event.key == pygame.K_e:
                 self.open_nearby_enemy()
+            elif event.key == pygame.K_F2 and self.client and self.session.get("player_id"):
+                if self.cheat_request_id:
+                    self.show_message("치트 승인 대기 중입니다.")
+                else:
+                    try:
+                        response = self.client.request_cheat(self.session["player_id"], "5")
+                        self.cheat_request_id = response["request_id"]
+                        self.show_message("관리자에게 치트 승인을 요청했습니다.")
+                    except RuntimeError as exc:
+                        self.show_message(str(exc))
 
-    def update(self):  # 플레이어·충돌·카메라·월드 상태를 갱신
-        if self.game_over or self.quiz.active:  # 게임 오버 또는 퀴즈 중에는 월드를 정지
+    def update(self):
+        if self.game_over or self.quiz.active:
             return
-        self.player.update(pygame.key.get_pressed(),self.world)
-        now = pygame.time.get_ticks()  # 현재 게임 경과 시각
-        if now >= self.damage_cooldown_until:  # 피해 재적용 대기 시간이 끝났는지 확인
+        self.player.update(pygame.key.get_pressed(), self.world)
+        now = pygame.time.get_ticks()
+        if now >= self.damage_cooldown_until:
             for spike in self.world.spikes:
-                spike_rect = pygame.Rect(spike["x"], spike["y"] - 14, spike["count"] * 13, 14)  # 가시 충돌 영역
-                if self.player.rect.colliderect(spike_rect):  # 플레이어가 가시에 닿았는지 확인
-                    if not self.cheats.get("no_damage"):  # 무피해 치트 미적용 시 체력 감소
-                        self.hp = max(0, self.hp - 10)  # 가시 피해를 적용한 체력
-                    self.damage_cooldown_until = now + 900  # 다음 피해 판정 가능 시각
-                    self.player.rect.bottom = min(self.player.rect.bottom, 500)  # 가시 충돌 반동 처리
-                    self.player.vy = -4  # 가시 충돌 후 위쪽 반동 속도
+                spike_rect = pygame.Rect(spike["x"], spike["y"] - 14, spike["count"] * 13, 14)
+                if self.player.rect.colliderect(spike_rect):
+                    if not self.cheats.get("no_damage"):
+                        self.hp = max(0, self.hp - 10)
+                    self.damage_cooldown_until = now + 900
+                    self.player.rect.bottom = min(self.player.rect.bottom, 500)
+                    self.player.vy = -4
                     break
-        target_x = max(0,self.player.rect.x-int(WIDTH*.55))  # 플레이어를 화면 기준 위치에 두는 카메라 좌표
-        self.camera_x = max(self.camera_x,target_x)  # 카메라가 뒤로 움직이지 않도록 위치를 갱신
+        target_x = max(0, self.player.rect.x - int(WIDTH * .55))
+        self.camera_x = max(self.camera_x, target_x)
         self.world.update_generation(self.player.rect.x)
         for enemy in self.world.enemies:
-            if enemy.active and self.player.rect.colliderect(enemy.rect):  # 살아 있는 적과 접촉하면 퀴즈를 열기
+            if enemy.active and self.player.rect.colliderect(enemy.rect):
                 self.quiz.open(enemy)
                 break
-        if self.player.rect.top > HEIGHT:  # 화면 추락 시 시작 위치 복귀
+        if self.player.rect.top > HEIGHT:
             self.player.reset_position()
-            self.camera_x = 0  # 시작 위치에 맞춰 카메라를 초기화
-            if not self.cheats.get("no_damage"):  # 무피해 치트가 없으면 추락 피해를 적용
-                self.hp = max(0, self.hp - 10)  # 추락 피해를 반영한 체력
-        if self.hp <= 0:  # 체력이 모두 소진되면 게임 오버로 전환
-            self.game_over = True  # 체력 0 이하 시 게임 오버
+            self.camera_x = 0
+            if not self.cheats.get("no_damage"):
+                self.hp = max(0, self.hp - 10)
+        if self.hp <= 0:
+            self.game_over = True
 
-    def update_quiz(self):  # 퀴즈 시간 초과 결과를 게임에 반영
-        self.apply_quiz_result(self.quiz.check_timeout())
-
-    def draw(self):  # 게임 화면과 현재 상태 UI를 그리기
+    def draw(self):
         self.renderer.draw_background(self.camera_x)
-        self.renderer.draw_world(self.world,self.camera_x)
-        self.renderer.draw_player(self.player,self.camera_x)
-        message = self.message if pygame.time.get_ticks() < self.message_until else ""  # 표시 시간이 남은 알림만 전달
-        self.renderer.draw_hud(self.hp,self.score,message)
+        self.renderer.draw_world(self.world, self.camera_x)
+        self.renderer.draw_player(self.player, self.camera_x)
+        message = self.message if pygame.time.get_ticks() < self.message_until else ""
+        self.renderer.draw_hud(self.hp, self.score, message)
         self.renderer.draw_quiz(self.quiz)
-        if self.game_over:  # 게임 오버 화면을 추가로 표시
-            overlay = pygame.Surface((WIDTH,HEIGHT),pygame.SRCALPHA)  # 화면을 어둡게 덮는 투명 레이어
-            overlay.fill((0,0,0,190))
-            self.screen.blit(overlay,(0,0))
-            self.renderer.draw_text("GAME OVER",390,240,(255,255,255))
-            self.renderer.draw_text(f"최종 점수: {self.score}",390,290,(255,255,255))
-            self.renderer.draw_text("ESC를 눌러 종료",390,340,(255,255,255))
+        if self.game_over:
+            overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+            overlay.fill((0, 0, 0, 190))
+            self.screen.blit(overlay, (0, 0))
+            self.renderer.draw_text("GAME OVER", 390, 240, (255, 255, 255))
+            self.renderer.draw_text(f"최종 점수: {self.score}", 390, 290, (255, 255, 255))
+            self.renderer.draw_text("ESC를 눌러 종료", 390, 340, (255, 255, 255))
 
-    def run(self):  # 게임 루프를 실행하고 매 프레임 상태를 갱신
+    def run(self):
         while self.running:
             self.clock.tick(60)
             for event in pygame.event.get():
                 self.handle_event(event)
             self.update()
-            self.update_quiz()
+            self.apply_quiz_result(self.quiz.check_timeout())
+            self.poll_cheat()
+            if pygame.time.get_ticks() - self.last_saved >= 10_000:
+                self.save_state()
             self.draw()
             pygame.display.flip()
+        self.save_state(finished=self.game_over)

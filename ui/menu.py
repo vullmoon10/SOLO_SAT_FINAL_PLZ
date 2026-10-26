@@ -67,7 +67,7 @@ class Menu:  # 메인·불러오기·크레딧 메뉴 화면을 관리
         self.buttons = []  # 메인 페이지 버튼 목록을 새로 구성
         self._button("새 게임", 235, 0, "새로운 도전을 시작한다")
         self._button("불러오기", 305, 1, "저장 슬롯 선택")
-        self._button("크레딧", 375, 2)
+        self._button("랭킹", 375, 2)
         self._button("종료", 435, 3)
         self._text("↑ / ↓ 선택   ·   Enter 실행   ·   마우스 클릭", (500, 510), self.small, (211, 220, 230))
 
@@ -107,15 +107,14 @@ class Menu:  # 메인·불러오기·크레딧 메뉴 화면을 관리
             if index == 1:  # 저장 슬롯 화면으로 이동
                 self.page, self.selected = "load", 0  # 저장 슬롯 페이지와 첫 선택 항목으로 이동
             elif index == 2:  # 크레딧 화면으로 이동
-                self.page, self.selected = "credits", 0  # 크레딧 페이지와 첫 선택 항목으로 이동
+                return "leaderboard"
             elif index == 3:  # 게임 종료를 요청
                 return "quit"
         elif self.page == "load":  # 저장 슬롯 화면 선택을 처리
             if index == 3:  # 뒤로 버튼으로 메인 메뉴에 복귀
                 self.page, self.selected = "main", 0  # 메인 페이지와 첫 선택 항목으로 복귀
             else:  # 아직 저장 연동이 없는 슬롯 안내를 표시
-                self.notice = "이 슬롯에는 저장 데이터가 없어. 새 게임을 시작해줘."  # 슬롯 사용 불가 안내
-                self.notice_until = pygame.time.get_ticks() + 2500  # 안내 문구 표시 종료 시각
+                return "load_game"
         else:
             self.page, self.selected = "main", 0  # 하위 페이지에서 메인 메뉴로 복귀
         return None

@@ -26,7 +26,7 @@ TITLE_FONT = pygame.font.SysFont("malgungothic", 27)  # 제목 글꼴
 BIG = pygame.font.SysFont("malgungothic", 34)  # 큰 강조 글꼴
 
 
-def choose_cheat():  # 환경 변수로 지정한 치트 설정을 반환
+def choose_cheat(cheat_code=None):  # 환경 변수로 지정한 치트 설정을 반환
     """치트는 SOLO_SAT_CHEAT 환경변수로 선택한다. 기본값은 일반 모드."""
     cheats = {  # 번호별 치트 조합
         "1": {"no_damage": True},
@@ -35,5 +35,5 @@ def choose_cheat():  # 환경 변수로 지정한 치트 설정을 반환
         "4": {"superspeed": True, "superjump": True},
         "5": {"no_damage": True, "superspeed": True, "superjump": True},
     }
-    cheat_code = os.getenv("SOLO_SAT_CHEAT", "").strip()  # 환경 변수 치트 번호
+    cheat_code = (cheat_code if cheat_code is not None else os.getenv("SOLO_SAT_CHEAT", "")).strip()
     return cheats.get(cheat_code, {})  # 유효한 번호의 치트 또는 빈 설정을 반환
